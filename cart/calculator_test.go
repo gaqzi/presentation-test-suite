@@ -47,6 +47,18 @@ func TestCalculator_Calculate(t *testing.T) {
 			totalAmount:    2,
 			totalTaxAmount: 0.2142,
 		},
+		{
+			name: "Stops calculating when there's an invalid tax rate",
+			items: []LineItem{
+				{
+					Description: "Invalid Banana",
+					Quantity:    1,
+					TaxRate:     0.66,
+					Price:       1,
+				},
+			},
+			expectError: true,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			taxRates := NewStaticTaxRates(
