@@ -1,23 +1,52 @@
 package cart
 
+import "fmt"
+
 type Result struct {
-	Valid      bool
-	TotalPrice float64
-	LineItems  []LineItem
+	Valid          bool
+	TotalAmount    float64
+	TotalTaxAmount float64
+	LineItems      []LineItem
+}
+
+func (u *UnknownTaxRate) Error() string {
+	return fmt.Sprintf("tax rate is unknown: %f", u.Rate)
+}
+
+type TaxRates interface {
+	// Amount calculates the tax amount of an inclusive tax price or returns UnknownTaxRate.
+	Amount(rate float64, price float64) (float64, error)
 }
 
 type Calculator struct {
+	taxRates TaxRates
 }
 
-func NewCalculator() *Calculator {
-	return &Calculator{}
+func NewCalculator(taxRates TaxRates) *Calculator {
+	return &Calculator{
+		taxRates: taxRates,
+	}
 }
 
 func (c *Calculator) Calculate(items []LineItem) (*Result, error) {
+	var totalTaxAmount float64
+	var totalAmount float64
+
+	for _, li := range items {
+		amount, err := c.taxRates.Amount(li.TaxRate, li.Price)
+		if err != nil {
+			return nil, fmt.Errorf("failed to calculate tax amount for %q: %w", li.Description, err)
+		}
+
+		totalTaxAmount += amount
+		totalAmount += li.Price
+	}
+
 	return &Result{
-		Valid:      true,
-		TotalPrice: 0,
-		LineItems:  items,
+		Valid:          true,
+		TotalAmount:    totalAmount,
+		TotalTaxAmount: totalTaxAmount,
+		LineItems:      items,
 	}, nil
 }
 
