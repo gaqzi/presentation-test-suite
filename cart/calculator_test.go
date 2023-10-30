@@ -34,6 +34,19 @@ func TestCalculator_Calculate(t *testing.T) {
 			totalAmount:    1,
 			totalTaxAmount: 0.1071,
 		},
+		{
+			name: "Calculate an item where quantity is not 1",
+			items: []LineItem{
+				{
+					Description: "Overpriced Banana",
+					Quantity:    2,
+					TaxRate:     0.12,
+					Price:       1,
+				},
+			},
+			totalAmount:    2,
+			totalTaxAmount: 0.2142,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			taxRates := NewStaticTaxRates(

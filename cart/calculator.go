@@ -33,13 +33,14 @@ func (c *Calculator) Calculate(items []LineItem) (*Result, error) {
 	var totalAmount float64
 
 	for _, li := range items {
-		amount, err := c.taxRates.Amount(li.TaxRate, li.Price)
+		priceAmount := li.Price * float64(li.Quantity)
+		amount, err := c.taxRates.Amount(li.TaxRate, priceAmount)
 		if err != nil {
 			return nil, fmt.Errorf("failed to calculate tax amount for %q: %w", li.Description, err)
 		}
 
 		totalTaxAmount += amount
-		totalAmount += li.Price
+		totalAmount += priceAmount
 	}
 
 	return &Result{
