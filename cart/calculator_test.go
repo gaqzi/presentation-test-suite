@@ -22,15 +22,32 @@ func totals(totalAmount, totalTaxAmount float64) func(*testing.T, *cart.Result) 
 	}
 }
 
+func swedishTaxRates() cart.TaxRates {
+	return cart.NewStaticTaxRates(
+		cart.TaxRate(0.25, 0.20),
+		cart.TaxRate(0.12, 0.1071),
+		cart.TaxRate(0.06, 0.566),
+		cart.TaxRate(0, 0),
+	)
+}
+
+func noDiscounts() []cart.Discounter {
+	return nil
+}
+
 func TestCalculator_Calculate(t *testing.T) {
 	for _, tc := range []struct {
 		name         string
+		taxRates     func() cart.TaxRates
+		discounts    func() []cart.Discounter
 		expectError  func(t *testing.T, err error)
 		expectResult func(t *testing.T, result *cart.Result)
 		items        []cart.LineItem
 	}{
 		{
-			name: "Sums to 0 with an empty cart",
+			name:      "Sums to 0 with an empty cart",
+			taxRates:  swedishTaxRates,
+			discounts: noDiscounts,
 			items: []cart.LineItem{
 				{},
 			},
@@ -38,7 +55,9 @@ func TestCalculator_Calculate(t *testing.T) {
 			expectResult: totals(0, 0),
 		},
 		{
-			name: "Calculate an item with a tax rate",
+			name:      "Calculate an item with a tax rate",
+			taxRates:  swedishTaxRates,
+			discounts: noDiscounts,
 			items: []cart.LineItem{
 				{
 					Description: "Overpriced Banana",
@@ -51,7 +70,9 @@ func TestCalculator_Calculate(t *testing.T) {
 			expectResult: totals(1, 0.1071),
 		},
 		{
-			name: "Calculate an item where quantity is not 1",
+			name:      "Calculate an item where quantity is not 1",
+			taxRates:  swedishTaxRates,
+			discounts: noDiscounts,
 			items: []cart.LineItem{
 				{
 					Description: "Overpriced Banana",
@@ -65,6 +86,10 @@ func TestCalculator_Calculate(t *testing.T) {
 		},
 		{
 			name: "Stops calculating when there's an invalid tax rate",
+			taxRates: func() cart.TaxRates {
+				return cart.NewStaticTaxRates() // no tax rate is ever valid
+			},
+			discounts: noDiscounts,
 			items: []cart.LineItem{
 				{
 					Description: "Invalid Banana",
@@ -81,7 +106,16 @@ func TestCalculator_Calculate(t *testing.T) {
 			},
 		},
 		{
-			name: "Calculates with discounts applied",
+			name:     "Calculates with discounts applied",
+			taxRates: swedishTaxRates,
+			discounts: func() []cart.Discounter {
+				return []cart.Discounter{
+					cart.NewDiscountForItem(
+						"Ripe Banana",
+						cart.Discount{"Expiring soon", 0.2},
+					),
+				}
+			},
 			items: []cart.LineItem{
 				{
 					Description: "Ripe Banana",
@@ -95,17 +129,7 @@ func TestCalculator_Calculate(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			taxRates := cart.NewStaticTaxRates(
-				cart.TaxRate(0.25, 0.20),
-				cart.TaxRate(0.12, 0.1071),
-				cart.TaxRate(0.06, 0.566),
-				cart.TaxRate(0, 0),
-			)
-			discountRules := cart.NewDiscountForItem(
-				"Ripe Banana",
-				cart.Discount{"Expiring soon", 0.2},
-			)
-			calc := cart.NewCalculator(taxRates, []cart.Discounter{discountRules})
+			calc := cart.NewCalculator(tc.taxRates(), tc.discounts())
 
 			result, err := calc.Calculate(tc.items)
 
