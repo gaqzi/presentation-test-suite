@@ -63,7 +63,7 @@ func TestCalculator_Calculate(t *testing.T) {
 			name: "Calculates with discounts applied",
 			items: []LineItem{
 				{
-					Description: "Expiring Banana",
+					Description: "Ripe Banana",
 					Quantity:    1,
 					TaxRate:     0.12,
 					Price:       1,
@@ -81,8 +81,8 @@ func TestCalculator_Calculate(t *testing.T) {
 				TaxRate(0, 0),
 			)
 			discountRules := NewDiscountForItem(
-				"Expiring Banana",
-				Discount{"Short best before", 0.2},
+				"Ripe Banana",
+				Discount{"Expiring soon", 0.2},
 			)
 			calc := NewCalculator(taxRates, []Discounter{discountRules})
 
