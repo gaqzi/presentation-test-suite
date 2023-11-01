@@ -1,7 +1,9 @@
-package cart
+package cart_test
 
 import (
 	"testing"
+
+	"github.com/gaqzi/presentation-test-suite/cart"
 
 	"github.com/stretchr/testify/require"
 )
@@ -10,20 +12,20 @@ func TestCalculator_Calculate(t *testing.T) {
 	for _, tc := range []struct {
 		name           string
 		expectError    bool
-		items          []LineItem
+		items          []cart.LineItem
 		totalAmount    float64
 		totalTaxAmount float64
 	}{
 		{
 			name: "Sums to 0 with an empty cart",
-			items: []LineItem{
+			items: []cart.LineItem{
 				{},
 			},
 			totalAmount: 0,
 		},
 		{
 			name: "Calculate an item with a tax rate",
-			items: []LineItem{
+			items: []cart.LineItem{
 				{
 					Description: "Overpriced Banana",
 					Quantity:    1,
@@ -36,7 +38,7 @@ func TestCalculator_Calculate(t *testing.T) {
 		},
 		{
 			name: "Calculate an item where quantity is not 1",
-			items: []LineItem{
+			items: []cart.LineItem{
 				{
 					Description: "Overpriced Banana",
 					Quantity:    2,
@@ -49,7 +51,7 @@ func TestCalculator_Calculate(t *testing.T) {
 		},
 		{
 			name: "Stops calculating when there's an invalid tax rate",
-			items: []LineItem{
+			items: []cart.LineItem{
 				{
 					Description: "Invalid Banana",
 					Quantity:    1,
@@ -61,7 +63,7 @@ func TestCalculator_Calculate(t *testing.T) {
 		},
 		{
 			name: "Calculates with discounts applied",
-			items: []LineItem{
+			items: []cart.LineItem{
 				{
 					Description: "Ripe Banana",
 					Quantity:    1,
@@ -74,17 +76,17 @@ func TestCalculator_Calculate(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			taxRates := NewStaticTaxRates(
-				TaxRate(0.25, 0.20),
-				TaxRate(0.12, 0.1071),
-				TaxRate(0.06, 0.566),
-				TaxRate(0, 0),
+			taxRates := cart.NewStaticTaxRates(
+				cart.TaxRate(0.25, 0.20),
+				cart.TaxRate(0.12, 0.1071),
+				cart.TaxRate(0.06, 0.566),
+				cart.TaxRate(0, 0),
 			)
-			discountRules := NewDiscountForItem(
+			discountRules := cart.NewDiscountForItem(
 				"Ripe Banana",
-				Discount{"Expiring soon", 0.2},
+				cart.Discount{"Expiring soon", 0.2},
 			)
-			calc := NewCalculator(taxRates, []Discounter{discountRules})
+			calc := cart.NewCalculator(taxRates, []cart.Discounter{discountRules})
 
 			result, err := calc.Calculate(tc.items)
 
