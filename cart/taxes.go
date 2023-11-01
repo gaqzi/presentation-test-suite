@@ -8,8 +8,8 @@ type StaticTaxRates struct {
 	lookup map[float64]float64
 }
 
-// Amount calculates the inclusive amount of tax in price from rate.
-func (s *StaticTaxRates) Amount(rate float64, price float64) (float64, error) {
+// TaxableAmount calculates the inclusive amount of tax in price from rate.
+func (s *StaticTaxRates) TaxableAmount(rate float64, price float64) (float64, error) {
 	backwardRate, ok := s.lookup[rate]
 	if !ok {
 		return 0, &UnknownTaxRate{Rate: rate}

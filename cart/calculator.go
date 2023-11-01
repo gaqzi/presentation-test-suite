@@ -14,8 +14,8 @@ func (u *UnknownTaxRate) Error() string {
 }
 
 type TaxRates interface {
-	// Amount calculates the tax amount of an inclusive tax price or returns UnknownTaxRate.
-	Amount(rate float64, price float64) (float64, error)
+	// TaxableAmount calculates the tax amount of an inclusive tax price or returns UnknownTaxRate.
+	TaxableAmount(rate float64, price float64) (float64, error)
 }
 
 type Discounter interface {
@@ -51,7 +51,7 @@ func (c *Calculator) Calculate(items []LineItem) (*Result, error) {
 			priceAmount -= priceAmount * li.Discount.PercentageOff
 		}
 
-		amount, err := c.taxRates.Amount(li.TaxRate, priceAmount)
+		amount, err := c.taxRates.TaxableAmount(li.TaxRate, priceAmount)
 		if err != nil {
 			return nil, fmt.Errorf("failed to calculate tax amount for %q: %w", li.Description, err)
 		}
