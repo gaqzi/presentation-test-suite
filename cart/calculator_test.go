@@ -77,7 +77,7 @@ func TestCalculator_Calculate(t *testing.T) {
 			taxRates := NewStaticTaxRates(
 				TaxRate(0.25, 0.20),
 				TaxRate(0.12, 0.1071),
-				TaxRate(0.6, 5.66),
+				TaxRate(0.06, 0.566),
 				TaxRate(0, 0),
 			)
 			discountRules := NewDiscountForItem(
