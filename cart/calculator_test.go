@@ -59,6 +59,19 @@ func TestCalculator_Calculate(t *testing.T) {
 			},
 			expectError: true,
 		},
+		{
+			name: "Calculates with discounts applied",
+			items: []LineItem{
+				{
+					Description: "Expiring Banana",
+					Quantity:    1,
+					TaxRate:     0.12,
+					Price:       1,
+				},
+			},
+			totalAmount:    0.8,
+			totalTaxAmount: 0.08568,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			taxRates := NewStaticTaxRates(
@@ -67,7 +80,11 @@ func TestCalculator_Calculate(t *testing.T) {
 				TaxRate(0.6, 5.66),
 				TaxRate(0, 0),
 			)
-			calc := NewCalculator(taxRates)
+			discountRules := NewDiscountForItem(
+				"Expiring Banana",
+				Discount{"Short best before", 0.2},
+			)
+			calc := NewCalculator(taxRates, []Discounter{discountRules})
 
 			result, err := calc.Calculate(tc.items)
 
