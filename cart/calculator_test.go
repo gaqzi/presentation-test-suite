@@ -8,20 +8,34 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func noError(t *testing.T, err error) {
+	t.Helper()
+	require.NoError(t, err, "uh-oh, we got an unexpected error!")
+}
+
+func totals(totalAmount, totalTaxAmount float64) func(*testing.T, *cart.Result) {
+	return func(t *testing.T, result *cart.Result) {
+		t.Helper()
+		require.True(t, result.Valid)
+		require.Equal(t, totalAmount, result.TotalAmount)
+		require.Equal(t, totalTaxAmount, result.TotalTaxAmount)
+	}
+}
+
 func TestCalculator_Calculate(t *testing.T) {
 	for _, tc := range []struct {
-		name           string
-		expectError    bool
-		items          []cart.LineItem
-		totalAmount    float64
-		totalTaxAmount float64
+		name         string
+		expectError  func(t *testing.T, err error)
+		expectResult func(t *testing.T, result *cart.Result)
+		items        []cart.LineItem
 	}{
 		{
 			name: "Sums to 0 with an empty cart",
 			items: []cart.LineItem{
 				{},
 			},
-			totalAmount: 0,
+			expectError:  noError,
+			expectResult: totals(0, 0),
 		},
 		{
 			name: "Calculate an item with a tax rate",
@@ -33,8 +47,8 @@ func TestCalculator_Calculate(t *testing.T) {
 					Price:       1,
 				},
 			},
-			totalAmount:    1,
-			totalTaxAmount: 0.1071,
+			expectError:  noError,
+			expectResult: totals(1, 0.1071),
 		},
 		{
 			name: "Calculate an item where quantity is not 1",
@@ -46,8 +60,8 @@ func TestCalculator_Calculate(t *testing.T) {
 					Price:       1,
 				},
 			},
-			totalAmount:    2,
-			totalTaxAmount: 0.2142,
+			expectError:  noError,
+			expectResult: totals(2, 0.2142),
 		},
 		{
 			name: "Stops calculating when there's an invalid tax rate",
@@ -59,7 +73,12 @@ func TestCalculator_Calculate(t *testing.T) {
 					Price:       1,
 				},
 			},
-			expectError: true,
+			expectError: func(t *testing.T, err error) {
+				require.ErrorIs(t, err, &cart.UnknownTaxRate{0.66}, "expected an unknown tax rate as the error")
+			},
+			expectResult: func(t *testing.T, result *cart.Result) {
+				require.Empty(t, result)
+			},
 		},
 		{
 			name: "Calculates with discounts applied",
@@ -71,8 +90,8 @@ func TestCalculator_Calculate(t *testing.T) {
 					Price:       1,
 				},
 			},
-			totalAmount:    0.8,
-			totalTaxAmount: 0.08568,
+			expectError:  noError,
+			expectResult: totals(0.8, 0.08568),
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -90,13 +109,8 @@ func TestCalculator_Calculate(t *testing.T) {
 
 			result, err := calc.Calculate(tc.items)
 
-			if tc.expectError {
-				require.Error(t, err)
-			} else {
-				require.True(t, result.Valid)
-				require.Equal(t, tc.totalAmount, result.TotalAmount)
-				require.Equal(t, tc.totalTaxAmount, result.TotalTaxAmount)
-			}
+			tc.expectError(t, err)
+			tc.expectResult(t, result)
 		})
 	}
 }
