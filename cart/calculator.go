@@ -22,13 +22,11 @@ type Discounter interface {
 }
 
 type Calculator struct {
-	taxRates  TaxRates
 	discounts []Discounter
 }
 
-func NewCalculator(taxRates TaxRates, discounts []Discounter) *Calculator {
+func NewCalculator(discounts []Discounter) *Calculator {
 	return &Calculator{
-		taxRates:  taxRates,
 		discounts: discounts,
 	}
 }
@@ -44,15 +42,8 @@ func (c *Calculator) Calculate(items []LineItem) (*Result, error) {
 	var totalAmount float64
 
 	for _, li := range items {
-		priceAmount := li.TotalPrice()
-
-		amount, err := c.taxRates.TaxableAmount(li.TaxRate, priceAmount)
-		if err != nil {
-			return nil, fmt.Errorf("failed to calculate tax amount for %q: %w", li.Description, err)
-		}
-
-		totalTaxAmount += amount
-		totalAmount += priceAmount
+		totalTaxAmount += li.TaxableAmount()
+		totalAmount += li.TotalPrice()
 	}
 
 	return &Result{
@@ -66,8 +57,8 @@ func (c *Calculator) Calculate(items []LineItem) (*Result, error) {
 type LineItem struct {
 	Description string
 	Quantity    int
-	TaxRate     float64
 	Price       float64 // not how you'd like to represent this, but it's a toy example
+	TaxRate     TaxRate
 	Discount    Discount
 }
 
@@ -78,4 +69,9 @@ func (i *LineItem) TotalPrice() float64 {
 	}
 
 	return total
+}
+
+// TaxableAmount calculates the inclusive amount of tax in price using the current tax rate.
+func (i *LineItem) TaxableAmount() float64 {
+	return i.TotalPrice() * i.TaxRate.Remove
 }

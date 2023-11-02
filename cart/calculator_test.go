@@ -22,28 +22,13 @@ func totals(totalAmount, totalTaxAmount float64) func(*testing.T, *cart.Result) 
 	}
 }
 
-func swedishTaxRates() cart.TaxRates {
-	return cart.NewStaticTaxRates(
-		cart.TaxRate(0.25, 0.20),
-		cart.TaxRate(0.12, 0.1071),
-		cart.TaxRate(0.06, 0.566),
-		cart.TaxRate(0, 0),
-	)
-}
-
 func noDiscounts() []cart.Discounter {
 	return nil
 }
 
 // ----- Builder -----
 type calculatorBuilder struct {
-	taxRates  cart.TaxRates
 	discounts []cart.Discounter
-}
-
-func (c calculatorBuilder) WithTaxRates(tx cart.TaxRates) calculatorBuilder {
-	c.taxRates = tx
-	return c
 }
 
 func (c calculatorBuilder) WithDiscounts(ds []cart.Discounter) calculatorBuilder {
@@ -51,13 +36,8 @@ func (c calculatorBuilder) WithDiscounts(ds []cart.Discounter) calculatorBuilder
 	return c
 }
 
-func (c calculatorBuilder) Build() *cart.Calculator {
-	return cart.NewCalculator(c.taxRates, c.discounts)
-}
-
 func calculator() calculatorBuilder {
 	return calculatorBuilder{
-		taxRates:  swedishTaxRates(),
 		discounts: nil,
 	}
 }
@@ -66,17 +46,10 @@ func calculator() calculatorBuilder {
 
 // ----- Option -----
 type calculatorOptionBuilder struct {
-	taxRates  cart.TaxRates
 	discounts []cart.Discounter
 }
 
 type calculatorOption func(c *calculatorOptionBuilder)
-
-func withTaxRates(tx cart.TaxRates) calculatorOption {
-	return func(c *calculatorOptionBuilder) {
-		c.taxRates = tx
-	}
-}
 
 func withDiscounts(ds []cart.Discounter) calculatorOption {
 	return func(c *calculatorOptionBuilder) {
@@ -86,7 +59,6 @@ func withDiscounts(ds []cart.Discounter) calculatorOption {
 
 func defaultCalculator(options ...calculatorOption) *cart.Calculator {
 	calc := calculatorOptionBuilder{
-		taxRates:  swedishTaxRates(),
 		discounts: nil,
 	}
 
@@ -94,10 +66,14 @@ func defaultCalculator(options ...calculatorOption) *cart.Calculator {
 		opt(&calc)
 	}
 
-	return cart.NewCalculator(calc.taxRates, calc.discounts)
+	return cart.NewCalculator(calc.discounts)
 }
 
 // ----- /Option -----
+
+var (
+	taxRateFood = cart.TaxRate{Add: 0.12, Remove: 0.1071}
+)
 
 func TestCalculator_Calculate(t *testing.T) {
 	for _, tc := range []struct {
@@ -123,7 +99,7 @@ func TestCalculator_Calculate(t *testing.T) {
 				{
 					Description: "Overpriced Banana",
 					Quantity:    1,
-					TaxRate:     0.12,
+					TaxRate:     taxRateFood,
 					Price:       1,
 				},
 			},
@@ -137,33 +113,12 @@ func TestCalculator_Calculate(t *testing.T) {
 				{
 					Description: "Overpriced Banana",
 					Quantity:    2,
-					TaxRate:     0.12,
+					TaxRate:     taxRateFood,
 					Price:       1,
 				},
 			},
 			expectError:  noError,
 			expectResult: totals(2, 0.2142),
-		},
-		{
-			name: "Stops calculating when there's an invalid tax rate",
-			// Strategy (options) pattern
-			calculator: defaultCalculator(
-				withTaxRates(cart.NewStaticTaxRates()), // no tax rate is ever valid
-			),
-			items: []cart.LineItem{
-				{
-					Description: "Invalid Banana",
-					Quantity:    1,
-					TaxRate:     0.66,
-					Price:       1,
-				},
-			},
-			expectError: func(t *testing.T, err error) {
-				require.ErrorIs(t, err, &cart.UnknownTaxRate{0.66}, "expected an unknown tax rate as the error")
-			},
-			expectResult: func(t *testing.T, result *cart.Result) {
-				require.Empty(t, result)
-			},
 		},
 		{
 			name: "Calculates with discounts applied",
@@ -179,7 +134,7 @@ func TestCalculator_Calculate(t *testing.T) {
 				{
 					Description: "Ripe Banana",
 					Quantity:    1,
-					TaxRate:     0.12,
+					TaxRate:     taxRateFood,
 					Price:       1,
 				},
 			},
@@ -245,6 +200,38 @@ func TestLineItem_TotalPrice(t *testing.T) {
 	} {
 		t.Run(tc.description, func(t *testing.T) {
 			require.Equal(t, tc.expected, tc.item.TotalPrice())
+		})
+	}
+}
+
+func TestLineItem_TaxableAmount(t *testing.T) {
+	for _, tc := range []struct {
+		description string
+		item        cart.LineItem
+		expected    float64
+	}{
+		{
+			description: "Tax of 0 on remove returns 0",
+			item: cart.LineItem{
+				Description: "Overpriced Banana",
+				TaxRate:     cart.TaxRate{0, 0},
+				Price:       1,
+			},
+			expected: 0,
+		},
+		{
+			description: "Tax of 10% on remove returns that amount",
+			item: cart.LineItem{
+				Description: "Overpriced Banana",
+				TaxRate:     cart.TaxRate{0, 0.1},
+				Quantity:    1,
+				Price:       1,
+			},
+			expected: 0.1,
+		},
+	} {
+		t.Run(tc.description, func(t *testing.T) {
+			require.Equal(t, tc.expected, tc.item.TaxableAmount())
 		})
 	}
 }
