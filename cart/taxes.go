@@ -1,7 +1,25 @@
 package cart
 
+import (
+	"errors"
+	"fmt"
+)
+
 type UnknownTaxRate struct {
 	Rate float64
+}
+
+func (u *UnknownTaxRate) Error() string {
+	return fmt.Sprintf("tax rate is unknown: %f", u.Rate)
+}
+
+func (u *UnknownTaxRate) Is(target error) bool {
+	var t *UnknownTaxRate
+	if !errors.As(target, &t) {
+		return false
+	}
+
+	return t.Rate == u.Rate
 }
 
 type StaticTaxRates struct {
