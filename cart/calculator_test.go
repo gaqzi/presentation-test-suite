@@ -195,3 +195,56 @@ func TestCalculator_Calculate(t *testing.T) {
 		})
 	}
 }
+
+func TestLineItem_TotalPrice(t *testing.T) {
+	for _, tc := range []struct {
+		description string
+		item        cart.LineItem
+		expected    float64
+	}{
+		{
+			description: "An item with price costs nothing",
+			item: cart.LineItem{
+				Description: "Air",
+				Quantity:    1,
+				Price:       0,
+			},
+			expected: 0,
+		},
+		{
+			description: "A single item with a price sums up to that price",
+			item: cart.LineItem{
+				Description: "Overpriced Banana",
+				Quantity:    1,
+				Price:       1,
+			},
+			expected: 1,
+		},
+		{
+			description: "An item with quantity of 2 doubles the single price",
+			item: cart.LineItem{
+				Description: "Overpriced Banana",
+				Quantity:    2,
+				Price:       1,
+			},
+			expected: 2,
+		},
+		{
+			description: "An item will apply it",
+			item: cart.LineItem{
+				Description: "Ripe Banana",
+				Quantity:    1,
+				Price:       1,
+				Discount: cart.Discount{
+					Description:   "Expiring soon",
+					PercentageOff: 0.2,
+				},
+			},
+			expected: 0.8,
+		},
+	} {
+		t.Run(tc.description, func(t *testing.T) {
+			require.Equal(t, tc.expected, tc.item.TotalPrice())
+		})
+	}
+}

@@ -44,10 +44,7 @@ func (c *Calculator) Calculate(items []LineItem) (*Result, error) {
 	var totalAmount float64
 
 	for _, li := range items {
-		priceAmount := li.Price * float64(li.Quantity)
-		if li.Discount.PercentageOff > 0 {
-			priceAmount -= priceAmount * li.Discount.PercentageOff
-		}
+		priceAmount := li.TotalPrice()
 
 		amount, err := c.taxRates.TaxableAmount(li.TaxRate, priceAmount)
 		if err != nil {
@@ -72,4 +69,13 @@ type LineItem struct {
 	TaxRate     float64
 	Price       float64 // not how you'd like to represent this, but it's a toy example
 	Discount    Discount
+}
+
+func (i *LineItem) TotalPrice() float64 {
+	total := i.Price * float64(i.Quantity)
+	if i.Discount.PercentageOff > 0 {
+		total -= total * i.Discount.PercentageOff
+	}
+
+	return total
 }
