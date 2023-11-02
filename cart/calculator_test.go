@@ -35,19 +35,81 @@ func noDiscounts() []cart.Discounter {
 	return nil
 }
 
+// ----- Builder -----
+type calculatorBuilder struct {
+	taxRates  cart.TaxRates
+	discounts []cart.Discounter
+}
+
+func (c calculatorBuilder) WithTaxRates(tx cart.TaxRates) calculatorBuilder {
+	c.taxRates = tx
+	return c
+}
+
+func (c calculatorBuilder) WithDiscounts(ds []cart.Discounter) calculatorBuilder {
+	c.discounts = ds
+	return c
+}
+
+func (c calculatorBuilder) Build() *cart.Calculator {
+	return cart.NewCalculator(c.taxRates, c.discounts)
+}
+
+func calculator() calculatorBuilder {
+	return calculatorBuilder{
+		taxRates:  swedishTaxRates(),
+		discounts: nil,
+	}
+}
+
+// ----- /Builder -----
+
+// ----- Option -----
+type calculatorOptionBuilder struct {
+	taxRates  cart.TaxRates
+	discounts []cart.Discounter
+}
+
+type calculatorOption func(c *calculatorOptionBuilder)
+
+func withTaxRates(tx cart.TaxRates) calculatorOption {
+	return func(c *calculatorOptionBuilder) {
+		c.taxRates = tx
+	}
+}
+
+func withDiscounts(ds []cart.Discounter) calculatorOption {
+	return func(c *calculatorOptionBuilder) {
+		c.discounts = ds
+	}
+}
+
+func defaultCalculator(options ...calculatorOption) *cart.Calculator {
+	calc := calculatorOptionBuilder{
+		taxRates:  swedishTaxRates(),
+		discounts: nil,
+	}
+
+	for _, opt := range options {
+		opt(&calc)
+	}
+
+	return cart.NewCalculator(calc.taxRates, calc.discounts)
+}
+
+// ----- /Option -----
+
 func TestCalculator_Calculate(t *testing.T) {
 	for _, tc := range []struct {
 		name         string
-		taxRates     func() cart.TaxRates
-		discounts    func() []cart.Discounter
+		calculator   *cart.Calculator
+		items        []cart.LineItem
 		expectError  func(t *testing.T, err error)
 		expectResult func(t *testing.T, result *cart.Result)
-		items        []cart.LineItem
 	}{
 		{
-			name:      "Sums to 0 with an empty cart",
-			taxRates:  swedishTaxRates,
-			discounts: noDiscounts,
+			name:       "Sums to 0 with an empty cart",
+			calculator: defaultCalculator(),
 			items: []cart.LineItem{
 				{},
 			},
@@ -55,9 +117,8 @@ func TestCalculator_Calculate(t *testing.T) {
 			expectResult: totals(0, 0),
 		},
 		{
-			name:      "Calculate an item with a tax rate",
-			taxRates:  swedishTaxRates,
-			discounts: noDiscounts,
+			name:       "Calculate an item with a tax rate",
+			calculator: defaultCalculator(),
 			items: []cart.LineItem{
 				{
 					Description: "Overpriced Banana",
@@ -70,9 +131,8 @@ func TestCalculator_Calculate(t *testing.T) {
 			expectResult: totals(1, 0.1071),
 		},
 		{
-			name:      "Calculate an item where quantity is not 1",
-			taxRates:  swedishTaxRates,
-			discounts: noDiscounts,
+			name:       "Calculate an item where quantity is not 1",
+			calculator: defaultCalculator(),
 			items: []cart.LineItem{
 				{
 					Description: "Overpriced Banana",
@@ -86,10 +146,10 @@ func TestCalculator_Calculate(t *testing.T) {
 		},
 		{
 			name: "Stops calculating when there's an invalid tax rate",
-			taxRates: func() cart.TaxRates {
-				return cart.NewStaticTaxRates() // no tax rate is ever valid
-			},
-			discounts: noDiscounts,
+			// Strategy (options) pattern
+			calculator: defaultCalculator(
+				withTaxRates(cart.NewStaticTaxRates()), // no tax rate is ever valid
+			),
 			items: []cart.LineItem{
 				{
 					Description: "Invalid Banana",
@@ -106,16 +166,15 @@ func TestCalculator_Calculate(t *testing.T) {
 			},
 		},
 		{
-			name:     "Calculates with discounts applied",
-			taxRates: swedishTaxRates,
-			discounts: func() []cart.Discounter {
-				return []cart.Discounter{
+			name: "Calculates with discounts applied",
+			calculator: defaultCalculator(
+				withDiscounts([]cart.Discounter{
 					cart.NewDiscountForItem(
 						"Ripe Banana",
 						cart.Discount{"Expiring soon", 0.2},
 					),
-				}
-			},
+				}),
+			),
 			items: []cart.LineItem{
 				{
 					Description: "Ripe Banana",
@@ -129,9 +188,7 @@ func TestCalculator_Calculate(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			calc := cart.NewCalculator(tc.taxRates(), tc.discounts())
-
-			result, err := calc.Calculate(tc.items)
+			result, err := tc.calculator.Calculate(tc.items)
 
 			tc.expectError(t, err)
 			tc.expectResult(t, result)
