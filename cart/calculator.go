@@ -57,7 +57,7 @@ func (c *Calculator) Calculate(items []LineItem) *Result {
 type LineItem struct {
 	Description string
 	Quantity    int
-	Price       float64 // not how you'd like to represent this, but it's a toy example
+	Price       float64 // inclusive of tax, and probably shouldn't do float64 for money in the real world
 	TaxRate     TaxRate
 	Discount    Discount
 }
