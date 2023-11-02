@@ -31,7 +31,7 @@ func NewCalculator(discounts []Discounter) *Calculator {
 	}
 }
 
-func (c *Calculator) Calculate(items []LineItem) (*Result, error) {
+func (c *Calculator) Calculate(items []LineItem) *Result {
 	for i := 0; i < len(items); i++ {
 		for _, d := range c.discounts {
 			d.Apply(&items[i])
@@ -51,7 +51,7 @@ func (c *Calculator) Calculate(items []LineItem) (*Result, error) {
 		TotalAmount:    totalAmount,
 		TotalTaxAmount: totalTaxAmount,
 		LineItems:      items,
-	}, nil
+	}
 }
 
 type LineItem struct {

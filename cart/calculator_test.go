@@ -8,11 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func noError(t *testing.T, err error) {
-	t.Helper()
-	require.NoError(t, err, "uh-oh, we got an unexpected error!")
-}
-
 func totals(totalAmount, totalTaxAmount float64) func(*testing.T, *cart.Result) {
 	return func(t *testing.T, result *cart.Result) {
 		t.Helper()
@@ -80,7 +75,6 @@ func TestCalculator_Calculate(t *testing.T) {
 		name         string
 		calculator   *cart.Calculator
 		items        []cart.LineItem
-		expectError  func(t *testing.T, err error)
 		expectResult func(t *testing.T, result *cart.Result)
 	}{
 		{
@@ -89,7 +83,6 @@ func TestCalculator_Calculate(t *testing.T) {
 			items: []cart.LineItem{
 				{},
 			},
-			expectError:  noError,
 			expectResult: totals(0, 0),
 		},
 		{
@@ -103,7 +96,6 @@ func TestCalculator_Calculate(t *testing.T) {
 					Price:       1,
 				},
 			},
-			expectError:  noError,
 			expectResult: totals(1, 0.1071),
 		},
 		{
@@ -117,7 +109,6 @@ func TestCalculator_Calculate(t *testing.T) {
 					Price:       1,
 				},
 			},
-			expectError:  noError,
 			expectResult: totals(2, 0.2142),
 		},
 		{
@@ -138,14 +129,12 @@ func TestCalculator_Calculate(t *testing.T) {
 					Price:       1,
 				},
 			},
-			expectError:  noError,
 			expectResult: totals(0.8, 0.08568),
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			result, err := tc.calculator.Calculate(tc.items)
+			result := tc.calculator.Calculate(tc.items)
 
-			tc.expectError(t, err)
 			tc.expectResult(t, result)
 		})
 	}
