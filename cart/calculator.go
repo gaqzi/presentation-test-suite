@@ -46,21 +46,14 @@ func (d Discounts) Apply(items []LineItem) []LineItem {
 	return returns
 }
 
-func (c *Calculator) Calculate(items []LineItem) *Result {
+func (c *Calculator) Calculate(items LineItems) *Result {
 	items = c.discounts.Apply(items)
-
-	var totalTaxAmount float64
-	var totalAmount float64
-
-	for _, li := range items {
-		totalTaxAmount += li.TaxableAmount()
-		totalAmount += li.TotalPrice()
-	}
+	totals := items.Totals()
 
 	return &Result{
 		Valid:          true,
-		TotalAmount:    totalAmount,
-		TotalTaxAmount: totalTaxAmount,
+		TotalAmount:    totals.TotalAmount,
+		TotalTaxAmount: totals.TotalTaxAmount,
 		LineItems:      items,
 	}
 }
@@ -85,4 +78,17 @@ func (i *LineItem) TotalPrice() float64 {
 // TaxableAmount calculates the inclusive amount of tax in price using the current tax rate.
 func (i *LineItem) TaxableAmount() float64 {
 	return i.TotalPrice() * i.TaxRate.Remove
+}
+
+type LineItems []LineItem
+
+func (li LineItems) Totals() Result {
+	var result Result
+
+	for _, i := range li {
+		result.TotalAmount += i.TotalPrice()
+		result.TotalTaxAmount += i.TaxableAmount()
+	}
+
+	return result
 }

@@ -288,3 +288,51 @@ func TestDiscounts_Apply(t *testing.T) {
 		})
 	}
 }
+
+func TestLineItems_Totals(t *testing.T) {
+	for _, tc := range []struct {
+		description string
+		items       cart.LineItems
+		expected    cart.Result
+	}{
+		{
+			description: "No line items sum to nothing",
+			items:       nil,
+			expected: cart.Result{
+				TotalAmount:    0,
+				TotalTaxAmount: 0,
+			},
+		},
+		{
+			description: "A single item returns its price and taxable amount",
+			items: cart.LineItems{
+				overpricedBanana(),
+			},
+			expected: cart.Result{
+				TotalAmount:    1,
+				TotalTaxAmount: 0.1071,
+			},
+		},
+		{
+			description: "Multiple items are summed",
+			items: cart.LineItems{
+				overpricedBanana(),
+				overpricedBanana(func(i *cart.LineItem) {
+					i.Description = "Green Banana"
+					i.Price = 0.5
+				}),
+			},
+			expected: cart.Result{
+				TotalAmount: 1.5,
+				// why you shouldn't use floats for money without a proper strategy
+				TotalTaxAmount: 0.16065000000000002,
+			},
+		},
+	} {
+		t.Run(tc.description, func(t *testing.T) {
+			actual := tc.items.Totals()
+
+			require.Equal(t, tc.expected, actual)
+		})
+	}
+}
