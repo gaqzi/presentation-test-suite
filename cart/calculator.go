@@ -22,7 +22,7 @@ type Discounter interface {
 }
 
 type Calculator struct {
-	discounts []Discounter
+	discounts Discounts
 }
 
 func NewCalculator(discounts []Discounter) *Calculator {
@@ -31,12 +31,23 @@ func NewCalculator(discounts []Discounter) *Calculator {
 	}
 }
 
-func (c *Calculator) Calculate(items []LineItem) *Result {
-	for i := 0; i < len(items); i++ {
-		for _, d := range c.discounts {
-			d.Apply(&items[i])
+type Discounts []Discounter
+
+func (d Discounts) Apply(items []LineItem) []LineItem {
+	var returns []LineItem
+
+	for _, item := range items {
+		for _, d := range d {
+			d.Apply(&item)
 		}
+		returns = append(returns, item)
 	}
+
+	return returns
+}
+
+func (c *Calculator) Calculate(items []LineItem) *Result {
+	items = c.discounts.Apply(items)
 
 	var totalTaxAmount float64
 	var totalAmount float64

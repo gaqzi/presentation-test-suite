@@ -21,6 +21,22 @@ func noDiscounts() []cart.Discounter {
 	return nil
 }
 
+func overpricedBanana(changes ...func(i *cart.LineItem)) cart.LineItem {
+	item := cart.LineItem{
+		Description: "Overpriced Banana",
+		Quantity:    1,
+		Price:       1,
+		TaxRate:     taxRateFood,
+		Discount:    cart.Discount{},
+	}
+
+	for _, change := range changes {
+		change(&item)
+	}
+
+	return item
+}
+
 // ----- Builder -----
 type calculatorBuilder struct {
 	discounts []cart.Discounter
@@ -221,6 +237,54 @@ func TestLineItem_TaxableAmount(t *testing.T) {
 	} {
 		t.Run(tc.description, func(t *testing.T) {
 			require.Equal(t, tc.expected, tc.item.TaxableAmount())
+		})
+	}
+}
+
+func TestDiscounts_Apply(t *testing.T) {
+	for _, tc := range []struct {
+		description string
+		discounts   cart.Discounts
+		items       []cart.LineItem
+		expected    []cart.LineItem
+	}{
+		{
+			description: "When no discounts apply it doesn't add one to the items",
+			discounts:   nil,
+			items:       []cart.LineItem{overpricedBanana()},
+			expected:    []cart.LineItem{overpricedBanana()},
+		},
+		{
+			description: "Only apply a discount to the matching item",
+			discounts: cart.Discounts{
+				cart.NewDiscountForItem("Ripe Banana", cart.Discount{
+					Description:   "Expiring soon",
+					PercentageOff: 0.2,
+				}),
+			},
+			items: []cart.LineItem{
+				overpricedBanana(),
+				overpricedBanana(func(i *cart.LineItem) {
+					i.Description = "Ripe Banana"
+				}),
+			},
+			expected: []cart.LineItem{
+				overpricedBanana(),
+				overpricedBanana(func(i *cart.LineItem) {
+					i.Description = "Ripe Banana"
+					// The discount wasn't part of the input items but were added
+					i.Discount = cart.Discount{
+						Description:   "Expiring soon",
+						PercentageOff: 0.2,
+					}
+				}),
+			},
+		},
+	} {
+		t.Run(tc.description, func(t *testing.T) {
+			actual := tc.discounts.Apply(tc.items)
+
+			require.Equal(t, tc.expected, actual)
 		})
 	}
 }
