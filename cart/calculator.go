@@ -1,9 +1,5 @@
 package cart
 
-import (
-	"fmt"
-)
-
 type Result struct {
 	Valid          bool
 	TotalAmount    float64
@@ -21,13 +17,23 @@ type Discounter interface {
 	Apply(*LineItem)
 }
 
-type Calculator struct {
-	discounts Discounts
+type LineItemApplicator interface {
+	Apply(items []LineItem) []LineItem
 }
 
-func NewCalculator(discounts []Discounter) *Calculator {
+type LineItemTotalser interface {
+	Totals(items []LineItem) Result
+}
+
+type Calculator struct {
+	discounts LineItemApplicator
+	totaler   LineItemTotalser
+}
+
+func NewCalculator(discounts LineItemApplicator, totaler LineItemTotalser) *Calculator {
 	return &Calculator{
 		discounts: discounts,
+		totaler:   totaler,
 	}
 }
 
@@ -46,9 +52,9 @@ func (d Discounts) Apply(items []LineItem) []LineItem {
 	return returns
 }
 
-func (c *Calculator) Calculate(items LineItems) *Result {
+func (c *Calculator) Calculate(items []LineItem) *Result {
 	items = c.discounts.Apply(items)
-	totals := items.Totals()
+	totals := c.totaler.Totals(items)
 
 	return &Result{
 		Valid:          true,
@@ -80,12 +86,12 @@ func (i *LineItem) TaxableAmount() float64 {
 	return i.TotalPrice() * i.TaxRate.Remove
 }
 
-type LineItems []LineItem
+type LineItemsTotaler struct{}
 
-func (li LineItems) Totals() Result {
+func (lit *LineItemsTotaler) Totals(items []LineItem) Result {
 	var result Result
 
-	for _, i := range li {
+	for _, i := range items {
 		result.TotalAmount += i.TotalPrice()
 		result.TotalTaxAmount += i.TaxableAmount()
 	}
